@@ -1,0 +1,193 @@
+---
+title: "More Tidy Tuesday"
+description: "Analyzing pet adoptions @ the Long Beach Animal Shelter"
+author:
+  - name: Jeffrey Sumner
+date: 2025-03-04
+format: html
+editor: visual
+draft: true
+eval: true
+#image: "https://nypost.com/wp-content/uploads/sites/2/2019/09/tv-scooby-doo-2b.jpg?quality=75&strip=all"
+---
+
+# Introduction
+Hello and welcome back! In this blog post I'm going back to the reason I created this blog in the first place, to showcase both R and python together. In the post to come we will be walking through data from Long Beach Animal Shelter. The tasks that we have been given are as follows:
+
+1. How has the number of pet adoptions changed over the years?
+2. Which type of pets are adopted most often?
+
+We will answer both those in the coming moments using both R andpython. Let's get started!
+
+# Getting the data
+
+First up, we need to get the data. The code chunks below will showcase two methods to extract the data using custom packages as well as reading directly from the repository.
+
+```{r}
+#| label: reticulate-setup
+#|
+library(reticulate)
+# reticulate::use_python(".venv/Scripts/python.exe")
+```
+
+
+::: panel-tabset
+## R
+
+Example R to get the Tidy Tuesday data
+
+```{r}
+#| warning: false
+#| message: false
+#| label: get-data-r
+
+# Option 1: Use the tidytuesdayR package to load the data for any given week
+option_1 = tidytuesdayR::tt_load("2025-03-04")[1]
+
+# Option 2: Directly read the data from Github
+option_2 = readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-03-04/longbeach.csv")
+```
+
+## Python
+
+Example Python to get the Tidy Tuesday data
+
+```{python}
+#| warning: false
+#| message: false
+#| label: get-data-python
+
+import PyDyTuesday as pdt
+import pandas as pd
+
+# Option 1: Use the PyDyTuesday package to load the data for any given week
+#           You must read the data after downloading using PyDyTuesday.get_date()
+
+pdt.get_date("2025-03-04")
+option_1 = pd.read_csv("longbeach.csv")
+
+# Option 2: Directly read the data from Github
+option_2 = pd.read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-03-04/longbeach.csv")
+```
+:::
+
+# Examining the Data
+
+::: panel-tabset
+
+## R
+
+In R, we use the dplyr package from tidyverse to get a `glimpse` of the data and check its structure.
+
+```{r}
+#| label: examine-data-r
+#| warning: false
+#| message: false
+#|
+library(dplyr)
+# Quick look at the first few rows and column names
+glimpse(option_2)
+```
+
+## Python
+
+In python, we use the pandas to inspect the data with `head` and `info`.
+
+```{python}
+# Display the first few rows and basic info
+print(option_2.head())
+print(option_2.info())
+```
+
+## Python Bonus
+
+Additionally, the `pytimetk` library has a `glimpse` method that acts similar to the `dplyr::glimpse()` function in R. As a primary R user, this is my preferred way to "glimpse" due to the familiarity.
+
+```{python}
+from pytimetk import glimpse
+
+glimpse(option_2)
+```
+:::
+
+# Question 1: How Has the Number of Pet Adoptions Changed over the Years?
+
+Alright, now we are going to answer our first question! To do this we will need to extract the year from the date column, filter for adoption records and count adoptions per year.
+
+::: panel-tabset
+
+## R
+
+```{r}
+library(ggplot2)
+library(lubridate)
+
+# Assuming columns are named 'date' and 'outcome_type'
+adoptions <- option_2 %>%
+  filter(outcome_type == "adoption") %>% # Filter for adoptions
+  mutate(year = year(outcome_date)) %>% # Extract year
+  group_by(year) %>%
+  summarise(total_adoptions = n()) # Count adoptions per year
+
+# Plot the trend
+ggplot(adoptions, aes(x = year, y = total_adoptions)) +
+  geom_line(color = "blue") +
+  geom_point() +
+  labs(title = "Pet Adoptions Over Time (R)", x = "Year", y = "Number of Adoptions") +
+  theme_minimal()
+```
+
+
+## Python
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Assuming columns are 'date' and 'outcome_type'
+option_2["date"] = pd.to_datetime(option_2["outcome_date"])  # Convert to datetime
+adoptions = (
+    option_2[option_2["outcome_type"] == "adoption"]  # Filter adoptions
+    .groupby(option_2["date"].dt.year)  # Group by year
+    .size()  # Count adoptions
+    .reset_index(name="total_adoptions")
+)  # Name the count column
+
+# Plot the trend
+plt.plot(adoptions["date"], adoptions["total_adoptions"], color="blue", marker="o")
+plt.title("Pet Adoptions Over Time (Python)")
+plt.xlabel("Year")
+plt.ylabel("Number of Adoptions")
+plt.grid(True)
+plt.show()
+```
+
+## Python Bonus
+
+I have yet another python bonus for the more R savvy user. Check out the library `plotnine` (https://plotnine.org/). This is an implementation of ggplot2 for python.
+```{python}
+from plotnine import ggplot, geom_line, geom_point, labs, theme_classic, aes
+
+# Assuming columns are 'date' and 'outcome_type'
+option_2["date"] = pd.to_datetime(option_2["outcome_date"])  # Convert to datetime
+adoptions = (
+    option_2[option_2["outcome_type"] == "adoption"]  # Filter adoptions
+    .groupby(option_2["date"].dt.year)  # Group by year
+    .size()  # Count adoptions
+    .reset_index(name="total_adoptions")  # Name the count column
+)
+
+# Plot the trend with plotnine
+(
+    ggplot(adoptions, aes(x="date", y="total_adoptions"))
+    + geom_line(color="blue")  # Line connecting points
+    + geom_point(size=2)  # Points at each year
+    + labs(
+        title="Pet Adoptions Over Time (Python with plotnine)",
+        x="Year",
+        y="Number of Adoptions",
+    )
+    + theme_classic()  # Clean theme
+)
+```
+
+:::
