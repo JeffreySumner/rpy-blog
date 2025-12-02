@@ -18,8 +18,6 @@
         "---\n",
         "\n",
         "\n",
-        "\n",
-        "\n",
         "# Introduction\n",
         "\n",
         "Welcome back! In [Part 1](../MLBHoFPart1/MLBHoFDataGathering.qmd), we gathered images of Hall of Fame eligible players from baseball-reference.com. We scraped hundreds of player photos with one simple goal in mind: to take the phrase \"he looks like a superstar\" **literally**.\n",
@@ -32,7 +30,7 @@
         "\n",
         "First, we need to set up our environment. This project uses Python with TensorFlow and Keras for the neural network.\n"
       ],
-      "id": "00b496b0"
+      "id": "b5b4b971"
     },
     {
       "cell_type": "code",
@@ -58,7 +56,7 @@
         "print(f\"TensorFlow version: {tf.__version__}\")\n",
         "print(f\"Keras version: {keras.__version__}\")"
       ],
-      "id": "11909e57",
+      "id": "3c14bcb0",
       "execution_count": null,
       "outputs": []
     },
@@ -70,7 +68,7 @@
         "\n",
         "We're using the images we scraped in Part 1. These images are stored in a directory with filenames that indicate whether the player made the Hall of Fame (`hof_`) or not (`nothof_`). Let's load them up!\n"
       ],
-      "id": "9d103c69"
+      "id": "9e2e3290"
     },
     {
       "cell_type": "code",
@@ -113,7 +111,7 @@
         "print(f\"Test samples: {len(image_names_hof_test) + len(image_names_nothof_test)}\")\n",
         "print(f\"Total images to process: {len(all_images)}\")"
       ],
-      "id": "d970e871",
+      "id": "7db81989",
       "execution_count": null,
       "outputs": []
     },
@@ -129,7 +127,7 @@
         "2. Resize all images to 32x32 pixels (tiny, but efficient)\n",
         "3. Flatten them into vectors for our dense neural network\n"
       ],
-      "id": "1aaac1f8"
+      "id": "56e750d9"
     },
     {
       "cell_type": "code",
@@ -154,7 +152,7 @@
         "\n",
         "print(f\"Processed {len(all_images_clean)} images\")"
       ],
-      "id": "321559ef",
+      "id": "e7a75700",
       "execution_count": null,
       "outputs": []
     },
@@ -164,7 +162,7 @@
       "source": [
         "Now let's create our training and test sets:\n"
       ],
-      "id": "2733ee66"
+      "id": "941cbce2"
     },
     {
       "cell_type": "code",
@@ -192,7 +190,7 @@
         "print(f\"Training labels shape: {train_labels.shape}\")\n",
         "print(f\"Test labels shape: {test_labels.shape}\")"
       ],
-      "id": "315ed0a7",
+      "id": "9776fe0d",
       "execution_count": null,
       "outputs": []
     },
@@ -211,7 +209,7 @@
         "\n",
         "This is a classic dense neural network. Nothing fancy, but it gets the job done.\n"
       ],
-      "id": "ab8dcc93"
+      "id": "1f139a7f"
     },
     {
       "cell_type": "code",
@@ -227,7 +225,7 @@
         "\n",
         "model.summary()"
       ],
-      "id": "044fb417",
+      "id": "8eb6ce04",
       "execution_count": null,
       "outputs": []
     },
@@ -239,7 +237,7 @@
         "\n",
         "Let's compile and train our model. We'll use binary crossentropy as our loss function and RMSprop as our optimizer.\n"
       ],
-      "id": "a27dd569"
+      "id": "47505347"
     },
     {
       "cell_type": "code",
@@ -251,7 +249,7 @@
         "    metrics=['accuracy']\n",
         ")"
       ],
-      "id": "82954ffa",
+      "id": "a189ed4d",
       "execution_count": null,
       "outputs": []
     },
@@ -261,7 +259,7 @@
       "source": [
         "Now for the fun part—training!\n"
       ],
-      "id": "2721b140"
+      "id": "b5b981df"
     },
     {
       "cell_type": "code",
@@ -299,7 +297,7 @@
         "plt.tight_layout()\n",
         "plt.show()"
       ],
-      "id": "96ee7a63",
+      "id": "eaee9ba3",
       "execution_count": null,
       "outputs": []
     },
@@ -311,7 +309,7 @@
         "\n",
         "Let's see how our model performs on the test set:\n"
       ],
-      "id": "596d96e6"
+      "id": "6c9b51a6"
     },
     {
       "cell_type": "code",
@@ -335,7 +333,7 @@
         "print(\"\\nClassification Report:\")\n",
         "print(classification_report(test_y, pred_classes, target_names=['Not HOF', 'HOF']))"
       ],
-      "id": "33a2424d",
+      "id": "91a4a18e",
       "execution_count": null,
       "outputs": []
     },
@@ -347,7 +345,7 @@
         "\n",
         "Now for the moment we've all been waiting for—let's test some famous players! We'll try players like Barry Bonds, Hank Aaron, and others who are either in the Hall or have been snubbed.\n"
       ],
-      "id": "7da0aae3"
+      "id": "b2725fee"
     },
     {
       "cell_type": "code",
@@ -389,7 +387,7 @@
         "print(\"\\nPredictions for Famous Players:\")\n",
         "print(results.to_string(index=False))"
       ],
-      "id": "5ce7c6ed",
+      "id": "1666baca",
       "execution_count": null,
       "outputs": []
     },
@@ -432,7 +430,7 @@
         "\n",
         "*All data sourced from the Lahman Baseball Database and baseball-reference.com. Player images are property of their respective owners.*"
       ],
-      "id": "66e8df4b"
+      "id": "e94c3905"
     }
   ],
   "metadata": {
@@ -440,7 +438,7 @@
       "name": "python3",
       "language": "python",
       "display_name": "Python 3 (ipykernel)",
-      "path": "C:\\Users\\jeffr\\AppData\\Local\\Programs\\Python\\Python312\\share\\jupyter\\kernels\\python3"
+      "path": "C:\\Users\\jeffr\\OneDrive\\Projects\\rpy\\posts\\MLBHoFPart2\\.venv\\share\\jupyter\\kernels\\python3"
     }
   },
   "nbformat": 4,

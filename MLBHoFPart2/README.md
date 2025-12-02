@@ -1,10 +1,10 @@
 # Face of a Superstar: Part 2 (Building the Model)
 
-This post builds the neural network model to predict Hall of Fame inductees based on player images. This is a **hybrid R and Python** project.
+This post builds the neural network model to predict Hall of Fame inductees based on player images. This is a **Python** project.
 
 ## Environment Setup
 
-This project uses `uv` for Python dependency management and `renv` for R.
+This project uses `uv` for Python dependency management.
 
 ### Python Setup (`uv`)
 
@@ -19,24 +19,27 @@ This project uses `uv` for Python dependency management and `renv` for R.
    ```
    This will create a `.venv` directory with the required Python packages (`tensorflow`, `keras`, `numpy`, etc.).
 
-### R Setup (`renv`)
-
-This project uses `renv` for R dependency management, configured to use **Posit Package Manager** for fast binary package installations on Windows.
-
-1. Open the project in RStudio (or set the working directory to this folder).
-2. Restore the R environment:
-   ```r
-   renv::restore()
-   ```
-
 ## Running the Project
 
-The Quarto document `MLBHoFPart2.qmd` is configured to automatically use the `uv` environment via `reticulate`:
+The Quarto document `MLBHoFPart2.qmd` is configured to use the `mlbhofpart2` Jupyter kernel, which runs in the `uv` environment.
 
-```r
-use_python(".venv/Scripts/python.exe", required = TRUE)
-```
+1. Register the kernel (only needs to be done once):
+   ```bash
+   uv run python -m ipykernel install --user --name=mlbhofpart2 --display-name "Python (MLBHoFPart2)"
+   ```
 
-Simply render the document or run the chunks in RStudio/VS Code.
+2. Render the document or run the chunks in RStudio/VS Code.
 
-**Important:** If running code chunks interactively (e.g., in RStudio or VS Code), ensure your **working directory** is set to this folder (`posts/MLBHoFPart2`). This ensures `reticulate` can find the `.venv` at the relative path specified.
+   **Note:** When running `quarto preview` from the command line, you must tell Quarto to use the project's Python environment (which contains the required `nbformat` package):
+   
+   **PowerShell:**
+   ```powershell
+   $env:QUARTO_PYTHON="path/to/.venv/Scripts/python.exe"; quarto preview MLBHoFPart2.qmd
+   ```
+   
+   **Bash:**
+   ```bash
+   QUARTO_PYTHON=path/to/.venv/bin/python quarto preview MLBHoFPart2.qmd
+   ```
+
+**Important:** If running code chunks interactively (e.g., in RStudio or VS Code), ensure your **working directory** is set to this folder (`posts/MLBHoFPart2`). This ensures the kernel can find the `.venv` at the relative path specified.
