@@ -25,7 +25,9 @@ First, we need to set up our environment. This project uses Python with TensorFl
 
 ```{python}
 #| warning: false
+
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -45,7 +47,15 @@ tf.random.set_seed(42)
 
 print(f"TensorFlow version: {tf.__version__}")
 print(f"Keras version: {keras.__version__}")
+print(f"Python executable: {sys.executable}")
 
+# Define model path
+model_path = Path("mlb_hof_model.keras")
+
+```
+
+```{python}
+#| eval: false
 # Download data if not present
 data_dir = Path("data")
 if not data_dir.exists():
@@ -57,7 +67,6 @@ if not data_dir.exists():
     # Alternatively, we can use gdown.download_folder if the folder is public.
     url = f'https://drive.google.com/drive/folders/{folder_id}?usp=sharing'
     gdown.download_folder(url, output=str(data_dir), quiet=False, use_cookies=False)
-
 ```
 
 # The Data
@@ -66,7 +75,12 @@ We're using the images we scraped in Part 1. These images are stored in a direct
 
 ```{python}
 # Get all image files from the existing data
-image_dir = Path("../MLBHallOfFameFaces/data/PlayerImages/")
+# Update path to point to the correct location in _backup_posts
+image_dir = Path("../../_backup_posts/MLBHallOfFameFaces/data/PlayerImages/")
+if not image_dir.exists():
+    # Fallback to local data dir if the backup path doesn't exist (e.g. in a different env)
+    image_dir = Path("data/PlayerImages")
+    
 all_files = list(image_dir.glob("*.jpg"))
 
 # Split into HOF and non-HOF
@@ -196,37 +210,50 @@ model.compile(
 Now for the fun part—training!
 
 ```{python}
-history = model.fit(
-    train_x, train_labels,
-    epochs=50,
-    batch_size=32,
-    validation_split=0.2,
-    verbose=1
-)
+if model_path.exists():
+    print(f"Loading saved model from {model_path}...")
+    model = keras.models.load_model(model_path)
+    # Create a dummy history object or dict since we didn't train
+    history = None 
+    print("Model loaded successfully.")
+else:
+    print("Training model...")
+    history = model.fit(
+        train_x, train_labels,
+        epochs=50,
+        batch_size=32,
+        validation_split=0.2,
+        verbose=1
+    )
+    print(f"Saving model to {model_path}...")
+    model.save(model_path)
 
-# Plot training history
-plt.figure(figsize=(12, 4))
+# Plot training history only if we trained the model
+if history is not None:
+    plt.figure(figsize=(12, 4))
 
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.title('Model Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.grid(True)
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
 
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Training Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.title('Model Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.grid(True)
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Model was loaded from disk, so no training history to plot.")
 ```
 
 # Model Evaluation
