@@ -1,0 +1,49 @@
+---
+title: "Management Madness: Data Collection"
+draft: true
+---
+
+Over the past two months, my team and I, all graduate students at Georgia Tech, have been working on a project for our Data Analytics for Business course. Our objective was to create a data analytics project similar to a Kaggle competition or Towards Data Science article, with previous topics ranging from predicting housing prices to analyzing wildfires. Being college basketball fans, we decided to delve into the March Madness tournament and initially aimed to predict attendance or win probabilities for participating teams, utilizing the statistical methods we learned in class. However, as we progressed, we realized that our focus should be more generalized, and we shifted our scope towards predicting win probabilities for men's college basketball regardless of regular season or post-season.
+
+Today marks the beginning of my first blog series, 'Management Madness', a nod to our project title, which in turn, is a playful reference to March Madness! Through this series, I plan to highlight some of the elements of our project. In this first installment, we will explore some of our data collection methods. So, let's get started!
+
+# Initial Data Collection
+
+At the start of our project, we planned to use R packages like ncaahoopR and hoopR to collect data, but they didn't have all the information we needed. We needed accurate attendance data and win probabilities, which we couldn't find in those packages. Luckily, we discovered the ESPN API, which provided us with the missing data. The following code snippet shows how it works.
+
+::: panel-tabset
+## R
+
+Example R to pull data from the ESPN API
+
+```{r}
+#| warning: false
+
+library(httr)
+
+url <- "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=401377466"
+
+txt = httr::GET(url)
+
+txt = httr::content(txt, as = "text")
+
+substr(txt,1,256)
+```
+
+## Python
+
+Example python to pull data from the ESPN API.
+
+```{python}
+
+import requests
+
+url = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=401377466"
+
+response = requests.get(url)
+
+txt = response.content.decode("utf-8")
+
+print(txt[:256])
+```
+:::

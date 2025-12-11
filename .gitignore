@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+renv/
+
+# Quarto/Jupyter
+*.html
+*.quarto_ipynb
+*_files/
+.quarto/
+*.ipynb_checkpoints/
+
+# Data files (uncomment if you want to ignore large datasets)
+# *.csv
+# *.parquet
+# *.pkl
+# *.pickle
+
+# Model files
+*.keras
+*.h5
+*.pkl
+*.joblib
+*.pt
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
