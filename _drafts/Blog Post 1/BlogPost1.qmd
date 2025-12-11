@@ -9,7 +9,7 @@ Today marks the beginning of my first blog series, 'Management Madness', a nod t
 
 # Initial Data Collection
 
-At the start of our project, we planned to use R packages like ncaahoopR and hoopR to collect data, but they didn't have all the information we needed. We needed accurate attendance data and win probabilities, which we couldn't find in those packages. Luckily, we discovered the ESPN API, which provided us with the missing data. The following code snippet shows how it works.
+At  the start of our project, we planned to use R packages like ncaahoopR and hoopR to collect data, but they didn't have all the information we needed. We needed accurate attendance data and win probabilities, which we couldn't find in those packages. Luckily, we discovered the ESPN API, which provided us with the missing data. The following code snippet shows how it works.
 
 ::: panel-tabset
 ## R
