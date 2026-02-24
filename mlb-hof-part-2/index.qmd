@@ -433,3 +433,5 @@ Thanks for following this two-part series, albeit over two years. If you want to
 ------------------------------------------------------------------------
 
 *Images consumed from the curated Hugging Face dataset [`rpy-ai/mlb-hof-faces`](https://huggingface.co/datasets/rpy-ai/mlb-hof-faces), originally derived from Lahman metadata and baseball-reference.com sources. Player images are property of their respective owners.*
+
+You can find the public source repository for this and other posts at [JeffreySumner/rpy-blog](https://github.com/JeffreySumner/rpy-blog).

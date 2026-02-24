@@ -33,3 +33,5 @@ Our tool is hosted on shinyapps.io. Please keep in mind that this tool is in dev
 # Wrap-up
 
 Once the semester winds down we plan to provide a larger update on the project where we go through the analysis itself. In the meantime, we would love any feedback on the tool as far as layout and design goes. Please contact us either through LinkedIn or by email (jsumner32\@gatech.edu) We want to improve this to make it as user-friendly as possible for the general public. Our belief is that with all the data people have at their fingertips, something like this risk assessment could help people better understand their risks of diseases like diabetes, leading to earlier intervention.
+
+You can find the public source repository for this and other posts at [JeffreySumner/rpy-blog](https://github.com/JeffreySumner/rpy-blog).

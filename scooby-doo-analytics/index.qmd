@@ -320,3 +320,5 @@ Future analysis could expand upon the feature engineering done for this analysis
 Additional manual entry could be performed to fill in the gaps for the numerous NULL values across predictors.
 
 More tuning of the boosted models could be done to find the right parameters that improve the errors and run-times to more appropriate levels.
+
+You can find the public source repository for this and other posts at [JeffreySumner/rpy-blog](https://github.com/JeffreySumner/rpy-blog).

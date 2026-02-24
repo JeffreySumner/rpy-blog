@@ -111,3 +111,5 @@ gg_base_py + geom_point()
 
 ```
 :::
+
+You can find the public source repository for this and other posts at [JeffreySumner/rpy-blog](https://github.com/JeffreySumner/rpy-blog).

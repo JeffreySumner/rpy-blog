@@ -265,6 +265,8 @@ x$pathString <- apply(x, 1, function(x) paste(trimws(na.omit(x)), collapse="/"))
 (mytree <- data.tree::as.Node(x%>% head() ))
 ```
 
+You can find the public source repository for this and other posts at [JeffreySumner/rpy-blog](https://github.com/JeffreySumner/rpy-blog).
+
 # References
 
 ::: {#refs}
