@@ -1690,6 +1690,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "datasets" },
     { name = "gdown" },
+    { name = "huggingface-hub" },
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "keras" },
@@ -1706,6 +1707,7 @@ dependencies = [
 requires-dist = [
     { name = "datasets", specifier = ">=2.16.0" },
     { name = "gdown", specifier = ">=5.2.0" },
+    { name = "huggingface-hub", specifier = ">=0.29.3" },
     { name = "ipykernel", specifier = ">=6.25.0" },
     { name = "jupyter", specifier = ">=1.0.0" },
     { name = "keras", specifier = ">=3.0.0" },

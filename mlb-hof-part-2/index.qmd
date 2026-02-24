@@ -8,6 +8,8 @@ format: html
 editor: visual
 image: "https://upload.wikimedia.org/wikipedia/en/thumb/1/11/National_Baseball_Hall_of_Fame_and_Museum_logo.svg/1200px-National_Baseball_Hall_of_Fame_and_Museum_logo.svg.png"
 categories: [Python, Machine Learning, Baseball, Neural Networks]
+execute:
+  freeze: auto  # re-render only when source changes
 ---
 
 # Introduction
@@ -121,25 +123,34 @@ Neural networks can be a little picky with data inputs so we will do the followi
 
 1.  Convert images to grayscale
     1.  We want to eliminate as much noise as possible ([Read about the model limitations here](#the-limitations))
-2.  Resize all images to 32x32 pixels
-3.  Flatten them into vectors for our dense neural network
+2.  Resize all images to 128x128 pixels (with aspect-preserving padding)
+3.  Feed them into a small CNN for classification
 
 ```{python}
+TARGET_SIZE = 128
+
+def resize_with_padding(img, target_size=TARGET_SIZE):
+    """Resize while preserving aspect ratio, then pad to square."""
+    from PIL import ImageOps
+    contained = ImageOps.contain(img, (target_size, target_size), method=Image.Resampling.BILINEAR)
+    return ImageOps.pad(contained, (target_size, target_size), color=0, method=Image.Resampling.BILINEAR)
+
 def load_and_preprocess_image(img_path):
-    """Load an image, convert to grayscale, and resize to 32x32"""
+    """Load an image, convert to grayscale, and resize to 128x128."""
     img = Image.open(img_path).convert('L')  # Convert to grayscale
-    img = img.resize((32, 32))  # Resize to 32x32
-    img_array = np.array(img) / 255.0  # Normalize to [0, 1]
-    return img_array.flatten()  # Flatten to 1D array
+    img = resize_with_padding(img, TARGET_SIZE)
+    img_array = np.array(img, dtype=np.float32) / 255.0  # Normalize to [0, 1]
+    return img_array  # 2D image array
 
 def preprocess_image_paths(image_paths):
-    """Preprocess a sequence of image paths into a feature matrix."""
+    """Preprocess a sequence of image paths into a CNN-ready tensor."""
     processed = []
     for i, img_path in enumerate(image_paths):
         if (i + 1) % 100 == 0:
             print(f"Processed {i + 1}/{len(image_paths)} images")
-        processed.append(load_and_preprocess_image(img_path))
-    return np.array(processed)
+        # Add channel dimension -> (H, W, 1)
+        processed.append(load_and_preprocess_image(img_path)[..., np.newaxis])
+    return np.array(processed, dtype=np.float32)
 
 print("Processing training images...")
 train_x = preprocess_image_paths(train_paths)
@@ -182,19 +193,25 @@ print(f"Class weights: {class_weight}")
 
 Time to build our neural network! Because this is meant as more of a fun exercise than anything, let's go with something simple:
 
--   **Input layer**: 1024 neurons (32x32 pixels)
--   **Hidden layer 1**: 256 neurons with ReLU activation
--   **Hidden layer 2**: 128 neurons with ReLU activation
+-   **Input**: 128x128x1 grayscale image
+-   **Conv blocks**: small stack of convolution + max-pooling layers
+-   **Dense head**: compact fully connected layer
 -   **Output layer**: 2 neurons with softmax activation (HOF or not)
 
 Nothing fancy here. We just want a model that is hopefully useful.
 
 ```{python}
 model = keras.Sequential([
-    layers.Dense(256, activation='relu', input_shape=(1024,)),
-    layers.Dropout(0.3),
+    layers.Input(shape=(TARGET_SIZE, TARGET_SIZE, 1)),
+    layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Flatten(),
     layers.Dense(128, activation='relu'),
-    layers.Dropout(0.3),
+    layers.Dropout(0.4),
     layers.Dense(2, activation='softmax')
 ])
 
@@ -208,7 +225,7 @@ Let's compile and train our model. We'll use binary crossentropy as our loss fun
 ```{python}
 model.compile(
     loss='binary_crossentropy',
-    optimizer='rmsprop',
+    optimizer='adam',
     metrics=[
         'accuracy',
         keras.metrics.AUC(name='auc'),
@@ -376,7 +393,7 @@ for img_path, actual_status in fun_images:
         print(f"Missing example image: {img_path.name}")
 
 # Convert to array
-fun_test_x = np.array(fun_images_clean)
+fun_test_x = np.array([img[..., np.newaxis] for img in fun_images_clean], dtype=np.float32)
 
 # Make predictions
 pred_fun = model.predict(fun_test_x, verbose=0) if len(fun_images_clean) > 0 else np.array([])
