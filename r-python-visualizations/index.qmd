@@ -10,10 +10,64 @@ editor: visual
 ---
 
 ```{r}
+#| include: false
+#| warning: false
+#| message: false
 library(reticulate)
-# Point to the uv-created virtual environment
-# Assuming Windows path structure for uv
-use_python(".venv/Scripts/python.exe", required = TRUE)
+
+# Resolve post root whether rendering from repo root or post folder
+post_candidates <- c(".", "posts/r-python-visualizations")
+post_root <- post_candidates[file.exists(file.path(post_candidates, "pyproject.toml"))][1]
+
+if (is.na(post_root) || !nzchar(post_root)) {
+  stop("Could not resolve post root for r-python-visualizations.")
+}
+
+# Activate renv from this post, then restore/install only if key packages are missing
+activate_path <- file.path(post_root, "renv", "activate.R")
+if (!file.exists(activate_path)) {
+  stop("Missing renv/activate.R in post directory.")
+}
+source(activate_path, local = TRUE)
+
+required_r_pkgs <- c("readr", "readxl", "ggplot2", "reticulate")
+missing_r_pkgs <- required_r_pkgs[!vapply(required_r_pkgs, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))]
+if (length(missing_r_pkgs) > 0) {
+  message("Missing R packages detected: ", paste(missing_r_pkgs, collapse = ", "))
+  message("Running renv::restore() for this post...")
+  renv::restore(project = post_root, prompt = FALSE)
+
+  # Fallback: install any package still missing after restore
+  still_missing <- required_r_pkgs[!vapply(required_r_pkgs, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))]
+  if (length(still_missing) > 0) {
+    message("Installing still-missing R packages: ", paste(still_missing, collapse = ", "))
+    install.packages(still_missing, repos = "https://packagemanager.posit.co/cran/latest")
+  }
+}
+
+# Ensure post-local uv venv exists; create it automatically if uv is available
+python_path <- file.path(post_root, ".venv", "Scripts", "python.exe")
+if (!file.exists(python_path)) {
+  uv_bin <- Sys.which("uv")
+  if (!nzchar(uv_bin)) {
+    stop(
+      "Missing post-local Python venv and uv not found. ",
+      "Install uv, then run: uv sync --project posts/r-python-visualizations"
+    )
+  }
+  message("Post venv missing, running uv sync...")
+  system2(uv_bin, c("sync", "--project", post_root))
+}
+
+if (!file.exists(python_path)) {
+  stop("Python venv setup failed. Expected: ", python_path)
+}
+
+use_python(python_path, required = TRUE)
+message("Using Python: ", normalizePath(python_path, winslash = "/", mustWork = FALSE))
+
+# Make relative paths consistent for the rest of the document
+setwd(post_root)
 ```
 
 ## Reading data into R/Python
@@ -28,13 +82,13 @@ For R we will need to initialize a few packages.
 ```{r}
 #| message: false
 #| warning: false
-library(tidyverse)
+library(readr)
 library(readxl)
 
 ca_np <- readr::read_csv("data/ca_np.csv")
 ci_np <- readxl::read_xlsx("data/ci_np.xlsx")
 
-glimpse(ca_np)
+str(ca_np)
 ```
 
 ### Python
@@ -66,8 +120,8 @@ For R we will need to initialize a few packages.
 
 ```{r}
 
-ggplot2::ggplot(data = ci_np, aes(x = year, y = visitors)) +
-  geom_line()
+ggplot2::ggplot(data = ci_np, ggplot2::aes(x = year, y = visitors)) +
+  ggplot2::geom_line()
 ```
 
 ### Python (plotnine)
@@ -95,10 +149,10 @@ Now that we have a few basic plots created across each package/library, let's cr
 
 ```{r}
 
-gg_base_r <- ggplot(data = ci_np, aes(x = year, y = visitors))
+gg_base_r <- ggplot2::ggplot(data = ci_np, ggplot2::aes(x = year, y = visitors))
 
 gg_base_r +
-  geom_point()
+  ggplot2::geom_point()
 
 ```
 

@@ -4,20 +4,23 @@ This post demonstrates how to create visualizations using both **R** (`ggplot2`)
 
 ## Environment Setup
 
-This project uses `uv` for Python dependency management.
+This post is reproducible with both:
+
+- `renv` for R dependencies
+- `uv` for Python dependencies (post-local `.venv`)
 
 ### Python Setup (`uv`)
 
 1.  Ensure you have [uv](https://github.com/astral-sh/uv) installed.
 2.  **Navigate to this directory** in your terminal:
     ```bash
-    cd "posts/Visualizations with R and Python"
+    cd posts/r-python-visualizations
     ```
 3.  Sync dependencies:
     ```bash
     uv sync
     ```
-    This installs `pandas`, `plotnine`, `matplotlib`, and `openpyxl`.
+    This creates `.venv/` and installs `pandas`, `plotnine`, `matplotlib`, and `openpyxl`.
 
 ### R Setup (`renv`)
 
@@ -31,10 +34,21 @@ This project uses `renv` for R dependency management, configured to use **Posit 
 
 ## Running the Project
 
-The Quarto document `r_python_visualizations.qmd` is configured to use the local `uv` environment:
+Render from repo root:
 
-```r
-use_python(".venv/Scripts/python.exe", required = TRUE)
+```bash
+quarto render posts/r-python-visualizations/index.qmd --execute
 ```
 
-**Important:** If running code chunks interactively, ensure your **working directory** is set to this folder (`posts/Visualizations with R and Python`) so that `reticulate` can locate the local `.venv`.
+The post includes setup checks that:
+
+- activate post-local `renv`
+- restore `renv` if required R packages are missing
+- create the post-local `.venv` with `uv sync` if missing
+
+## Required Data Files
+
+Place these files in `posts/r-python-visualizations/data/`:
+
+- `ca_np.csv`
+- `ci_np.xlsx`
