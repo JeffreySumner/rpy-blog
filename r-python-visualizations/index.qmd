@@ -1,0 +1,113 @@
+---
+title: "Visualizations with R and Python"
+description: "Visualizing the R for Excel workshop with both R and Python"
+author:
+  - name: Jeffrey Sumner
+date: 2023-05-08
+categories: [R, Python, Visualization]
+format: html
+editor: visual
+---
+
+```{r}
+library(reticulate)
+# Point to the uv-created virtual environment
+# Assuming Windows path structure for uv
+use_python(".venv/Scripts/python.exe", required = TRUE)
+```
+
+## Reading data into R/Python
+
+Below are the ways that we will be reading in our data from this post's local `data/` directory with both R and python. For R users, we will use the `readr::` and `readxl::` packages while python users will read data with `pandas`. Let's view the examples below.
+
+::: panel-tabset
+### R
+
+For R we will need to initialize a few packages.
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(readxl)
+
+ca_np <- readr::read_csv("data/ca_np.csv")
+ci_np <- readxl::read_xlsx("data/ci_np.xlsx")
+
+glimpse(ca_np)
+```
+
+### Python
+
+For python we will need to import pandas and Path from pathlib. Path will behave similarly to the here function that the R book uses.
+
+```{python}
+import pandas as pd
+from pathlib import Path
+
+ca_np_path = Path("data/ca_np.csv")
+ci_np_path = Path("data/ci_np.xlsx")
+
+ca_np = pd.read_csv(ca_np_path)
+ci_np = pd.read_excel(ci_np_path, engine='openpyxl')
+
+ca_np.info()
+```
+:::
+
+## Creating visuals: Visitors to Channel Islands NP
+
+Below we will create our first basic visual using both R and python. With the R code we will only use `ggplot2` to create this visual. For python, we will use `plotnine` which uses R's `ggplot2` syntax.
+
+::: panel-tabset
+### R (ggplot2)
+
+For R we will need to initialize a few packages.
+
+```{r}
+
+ggplot2::ggplot(data = ci_np, aes(x = year, y = visitors)) +
+  geom_line()
+```
+
+### Python (plotnine)
+
+```{python}
+import matplotlib.pyplot as plt
+from plotnine import ggplot, aes, geom_line
+plt.switch_backend('agg')
+
+# Creating the plot
+plot = (
+    ggplot(data=ci_np, mapping=aes(x='year', y='visitors'))
+    + geom_line()
+)
+
+# Displaying the plot
+print(plot)
+```
+:::
+
+Now that we have a few basic plots created across each package/library, let's create a base plot object and create variations off of it. This will be done similar to the R for Excel
+
+::: panel-tabset
+### R (ggplot2)
+
+```{r}
+
+gg_base_r <- ggplot(data = ci_np, aes(x = year, y = visitors))
+
+gg_base_r +
+  geom_point()
+
+```
+
+### Python (plotnine)
+
+```{python}
+from plotnine import ggplot, aes, geom_point
+gg_base_py = ggplot(data=ci_np, mapping=aes(x='year', y='visitors'))
+gg_base_py + geom_point()
+
+```
+:::

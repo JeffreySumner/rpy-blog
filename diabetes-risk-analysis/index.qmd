@@ -1,0 +1,35 @@
+---
+title: "Georgia Tech Data & Visual Anlaytics Project Overview: Diabetes Risk Analysis"
+description: "Group project for Georgia Tech's CSE6242 OSMA course"
+author:
+  - name: Jeffrey Sumner with Abdul Asif, Matthew Rosenthal and Matt Royalty
+date: 2023-12-13
+categories: [R, Shiny, Machine Learning, Georgia Tech]
+format: html
+editor: visual
+link-citations: true
+image: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Georgia_Tech_Yellow_Jackets_logo.svg"
+---
+
+# Update
+
+Long time no see! Life has been crazy since I formally decided to launch my blog, then informally ghosted all my tens of thousands of imaginary viewers. Since then life has been a whirlwind but I hope to be a bit more consistent with some posts and hope to bring others in to produce more content!
+
+# Introduction
+
+Full disclosure, this post will be brief. This Fall I entered my third semester in Georgia Tech's OMSA program and took a class called CSE6242 Data & Visual Analytics. As part of the courses main objectives, teams of 4-6 must complete a non-trivial analysis and create an innovative product to pair with the analytics. Abdul Asif, Matthew Rosenthal, Matt Royalty and myself decided to team up to research diabetes across the US. This led us to create many machine learning models and a shiny app that predicts a persons risk score based on various inputs. Let's discuss it more below!
+
+# Motivation
+
+Diabetes is a rising global health issue, particularly type 2 diabetes. By 2030, it's estimated that around 350 million people will be affected. This project aims to develop a predictive model that assesses an individual's risk of developing diabetes. By harnessing the comprehensive Behavioral Risk Factor Surveillance System (BRFSS) dataset, our team crafted an interactive dashboard designed to help with early detection of diabetes risks. In the current technological landscape, there are a host of tools that allow individuals to learn more about their own health such as blood pressure machines; our tool can be used similarly to provide a first pass to motivate individuals to visit their own doctor.
+
+# Risk Assessment Tool
+
+Our tool is hosted on shinyapps.io. Please keep in mind that this tool is in developmental stages and the prediction, once submitted, is meant to guide a person on their potential risk score. If you feel as if there are any concerns with your health, please seek a medical professional.
+
+```{=html}
+<iframe width="825" height="750" src="https://rpy-ai.shinyapps.io/DiabetesAwarenessTool/" title="Diabetes Risk Assessment Tool"></iframe>
+```
+# Wrap-up
+
+Once the semester winds down we plan to provide a larger update on the project where we go through the analysis itself. In the meantime, we would love any feedback on the tool as far as layout and design goes. Please contact us either through LinkedIn or by email (jsumner32\@gatech.edu) We want to improve this to make it as user-friendly as possible for the general public. Our belief is that with all the data people have at their fingertips, something like this risk assessment could help people better understand their risks of diseases like diabetes, leading to earlier intervention.

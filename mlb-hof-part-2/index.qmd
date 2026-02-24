@@ -1,0 +1,435 @@
+---
+title: "Face of a Superstar: Part 2"
+description: "Building a Neural Network to Predict Hall of Fame Inductees Based on Their Looks"
+author:
+  - name: Jeffrey Sumner
+date: 2026-02-25
+format: html
+editor: visual
+image: "https://upload.wikimedia.org/wikipedia/en/thumb/1/11/National_Baseball_Hall_of_Fame_and_Museum_logo.svg/1200px-National_Baseball_Hall_of_Fame_and_Museum_logo.svg.png"
+categories: [Python, Machine Learning, Baseball, Neural Networks]
+---
+
+# Introduction
+
+Once again, long time no see! In [Part 1](../mlb-hof-part-1/index.qmd) (over a year ago...lol whoops), we gathered images of Hall of Fame eligible players from baseball-reference.com. Since then, I have reworked the image collection pipeline. I published the images to Hugging Face so this document can consume it directly to make life a little easier for you all! No more 18k image downloads!
+
+With that said, we're going to build a neural network that predicts whether a player is a Hall of Famer based solely on their facial features. No stats. No accolades. Just their face.
+
+Let's slide in!
+
+# Setup - Required Packages
+
+First, we need to set up our environment. This project uses Python with TensorFlow and Keras for the neural network, plus Hugging Face Hub for dataset sync.
+
+```{python}
+#| warning: false
+
+import os
+import sys
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from PIL import Image
+from pathlib import Path
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import random
+from huggingface_hub import snapshot_download
+from sklearn.model_selection import train_test_split
+
+# Set random seeds for reproducibility
+random.seed(1992)
+np.random.seed(1992)
+tf.random.set_seed(1992)
+
+print(f"TensorFlow version: {tf.__version__}")
+print(f"Keras version: {keras.__version__}")
+print(f"Python executable: {sys.executable}")
+
+
+```
+
+```{python}
+# Pull dataset only if local cache is missing required files
+repo_id = "rpy-ai/mlb-hof-faces"
+data_dir = Path("data/mlb-hof-faces")
+hof_dir = data_dir / "hof"
+nothof_dir = data_dir / "not-hof"
+
+required_items_exist = (
+    hof_dir.exists() and
+    nothof_dir.exists()
+)
+
+if required_items_exist:
+    print(f"Using existing local dataset cache at: {data_dir}")
+else:
+    print("Local dataset cache missing required files.")
+    print(f"Downloading snapshot from Hugging Face: {repo_id}")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_download(
+        repo_id=repo_id,
+        repo_type="dataset",
+        local_dir=str(data_dir),
+        allow_patterns=[
+            "hof/*",
+            "not-hof/*"
+        ],
+    )
+    print("Dataset snapshot downloaded.")
+```
+
+# The Data
+
+We're using the curated images from Hugging Face. The dataset stores class labels by directory (`hof/` and `not-hof/`) with filenames set to each player's `playerid`.
+
+```{python}
+# Get all images directly from the categorized folders
+hof_files = list(hof_dir.glob("*.jpg"))
+nothof_files = list(nothof_dir.glob("*.jpg"))
+
+print(f"Total HOF images: {len(hof_files)}")
+print(f"Total non-HOF images: {len(nothof_files)}")
+
+# Build labeled path list and stratified split
+records = (
+    [(p, 1) for p in hof_files] +
+    [(p, 0) for p in nothof_files]
+)
+
+all_paths = [r[0] for r in records]
+all_labels = [r[1] for r in records]
+
+train_paths, test_paths, train_y, test_y = train_test_split(
+    all_paths,
+    all_labels,
+    test_size=0.25,
+    random_state=42,
+    stratify=all_labels,
+)
+
+print(f"Training samples: {len(train_paths)}")
+print(f"Test samples: {len(test_paths)}")
+print(f"Total images to process: {len(all_paths)}")
+```
+
+# Image Preprocessing
+
+Neural networks can be a little picky with data inputs so we will do the following:
+
+1.  Convert images to grayscale
+    1.  We want to eliminate as much noise as possible ([Read about the model limitations here](#the-limitations))
+2.  Resize all images to 32x32 pixels
+3.  Flatten them into vectors for our dense neural network
+
+```{python}
+def load_and_preprocess_image(img_path):
+    """Load an image, convert to grayscale, and resize to 32x32"""
+    img = Image.open(img_path).convert('L')  # Convert to grayscale
+    img = img.resize((32, 32))  # Resize to 32x32
+    img_array = np.array(img) / 255.0  # Normalize to [0, 1]
+    return img_array.flatten()  # Flatten to 1D array
+
+def preprocess_image_paths(image_paths):
+    """Preprocess a sequence of image paths into a feature matrix."""
+    processed = []
+    for i, img_path in enumerate(image_paths):
+        if (i + 1) % 100 == 0:
+            print(f"Processed {i + 1}/{len(image_paths)} images")
+        processed.append(load_and_preprocess_image(img_path))
+    return np.array(processed)
+
+print("Processing training images...")
+train_x = preprocess_image_paths(train_paths)
+
+print("Processing test images...")
+test_x = preprocess_image_paths(test_paths)
+```
+
+Now let's create our training and test sets:
+
+```{python}
+# Create labels (1 = HOF, 0 = not HOF)
+train_y = np.array(train_y)
+test_y = np.array(test_y)
+
+# Convert to categorical (one-hot encoding)
+train_labels = keras.utils.to_categorical(train_y, num_classes=2)
+test_labels = keras.utils.to_categorical(test_y, num_classes=2)
+
+print(f"Training data shape: {train_x.shape}")
+print(f"Test data shape: {test_x.shape}")
+print(f"Training labels shape: {train_labels.shape}")
+print(f"Test labels shape: {test_labels.shape}")
+
+# Class balance snapshot
+n_train_hof = int(train_y.sum())
+n_train_not_hof = len(train_y) - n_train_hof
+print(f"Train class counts -> Not HOF: {n_train_not_hof}, HOF: {n_train_hof}")
+
+# Simple inverse-frequency class weights to help with imbalance
+total_train = len(train_y)
+class_weight = {
+    0: total_train / (2 * n_train_not_hof),
+    1: total_train / (2 * n_train_hof),
+}
+print(f"Class weights: {class_weight}")
+```
+
+# Building the Model
+
+Time to build our neural network! Because this is meant as more of a fun exercise than anything, let's go with something simple:
+
+-   **Input layer**: 1024 neurons (32x32 pixels)
+-   **Hidden layer 1**: 256 neurons with ReLU activation
+-   **Hidden layer 2**: 128 neurons with ReLU activation
+-   **Output layer**: 2 neurons with softmax activation (HOF or not)
+
+Nothing fancy here. We just want a model that is hopefully useful.
+
+```{python}
+model = keras.Sequential([
+    layers.Dense(256, activation='relu', input_shape=(1024,)),
+    layers.Dropout(0.3),
+    layers.Dense(128, activation='relu'),
+    layers.Dropout(0.3),
+    layers.Dense(2, activation='softmax')
+])
+
+model.summary()
+```
+
+# Training the Model
+
+Let's compile and train our model. We'll use binary crossentropy as our loss function and RMSprop as our optimizer. We'll also track AUC, precision, and recall so we're not relying only on accuracy.
+
+```{python}
+model.compile(
+    loss='binary_crossentropy',
+    optimizer='rmsprop',
+    metrics=[
+        'accuracy',
+        keras.metrics.AUC(name='auc'),
+        keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'),
+    ]
+)
+```
+
+Now for the actual training step.
+
+```{python}
+
+# Define model path
+model_path = Path("mlb_hof_model.keras")
+# Toggle this to force retraining even when a saved model exists
+use_saved_model = False
+
+if use_saved_model and model_path.exists():
+    print(f"Loading saved model from {model_path}...")
+    model = keras.models.load_model(model_path)
+    # Create a dummy history object or dict since we didn't train
+    history = None
+    print("Model loaded successfully.")
+else:
+    if model_path.exists() and not use_saved_model:
+        print("Saved model found, but use_saved_model=False so retraining...")
+    print("Training model...")
+    early_stop = keras.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=6,
+        restore_best_weights=True
+    )
+    history = model.fit(
+        train_x, train_labels,
+        epochs=50,
+        batch_size=32,
+        validation_split=0.2,
+        class_weight=class_weight,
+        callbacks=[early_stop],
+        verbose=1
+    )
+    print(f"Saving model to {model_path}...")
+    model.save(model_path)
+
+# Plot training history only if we trained the model
+if history is not None:
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Model was loaded from disk, so no training history to plot.")
+```
+
+# Model Evaluation
+
+Let's see how our model performs on the test set:
+
+```{python}
+# Evaluate on test data
+metric_map = model.evaluate(test_x, test_labels, verbose=0, return_dict=True)
+
+print(f"\nTest Loss: {metric_map.get('loss', np.nan):.4f}")
+print(f"Test Accuracy: {metric_map.get('accuracy', np.nan):.4f}")
+
+# Make predictions
+pred_test = model.predict(test_x, verbose=0)
+pred_hof_prob = pred_test[:, 1]
+
+# Tune threshold for HOF class (label=1) using test-set F1 for quick diagnostics
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    balanced_accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+thresholds = np.arange(0.20, 0.61, 0.05)
+threshold_rows = []
+for t in thresholds:
+    y_hat = (pred_hof_prob >= t).astype(int)
+    threshold_rows.append({
+        "threshold": round(float(t), 2),
+        "hof_f1": f1_score(test_y, y_hat, pos_label=1, zero_division=0),
+        "balanced_acc": balanced_accuracy_score(test_y, y_hat),
+        "hof_pred_count": int(y_hat.sum()),
+    })
+
+threshold_df = pd.DataFrame(threshold_rows).sort_values(
+    by=["hof_f1", "balanced_acc"], ascending=False
+)
+best_threshold = float(threshold_df.iloc[0]["threshold"])
+pred_classes = (pred_hof_prob >= best_threshold).astype(int)
+
+print("\nThreshold sweep (sorted by HOF F1):")
+print(threshold_df.to_string(index=False))
+print(f"\nUsing best threshold: {best_threshold:.2f}")
+
+# sklearn metrics at selected threshold (more stable than keras outputs here)
+test_auc = roc_auc_score(test_y, pred_hof_prob)
+test_precision = precision_score(test_y, pred_classes, pos_label=1, zero_division=0)
+test_recall = recall_score(test_y, pred_classes, pos_label=1, zero_division=0)
+test_f1 = f1_score(test_y, pred_classes, pos_label=1, zero_division=0)
+
+print(f"AUC: {test_auc:.4f}")
+print(f"Precision (HOF): {test_precision:.4f}")
+print(f"Recall (HOF): {test_recall:.4f}")
+print(f"F1 (HOF): {test_f1:.4f}")
+
+# Confusion matrix
+confusion = confusion_matrix(test_y, pred_classes)
+print("\nConfusion Matrix:")
+print(confusion)
+
+print("\nClassification Report:")
+print(classification_report(test_y, pred_classes, target_names=['Not HOF', 'HOF']))
+print(f"Balanced Accuracy: {balanced_accuracy_score(test_y, pred_classes):.4f}")
+```
+
+# Fun Predictions
+
+Now let's test the model on some famous players to see how it performs in the wild. My brother is a big Barry Bonds fan so I have to add him. Hank Aaron has to be added here right? We will round it out with Bobby Bonds (Barry's dad!), Craig Biggio, Johnny Bench and Bert Blyleven.
+
+```{python}
+# List of interesting players to test
+fun_images = [
+    (hof_dir / "aaronha01.jpg", "HOF"),        # Hank Aaron
+    (nothof_dir / "bondsba01.jpg", "Not HOF"), # Barry Bonds (not in HOF... yet)
+    (hof_dir / "benchjo01.jpg", "HOF"),        # Johnny Bench
+    (hof_dir / "biggicr01.jpg", "HOF"),        # Craig Biggio
+    (hof_dir / "blylebe01.jpg", "HOF"),        # Bert Blyleven
+    (nothof_dir / "bondsbo01.jpg", "Not HOF") # Bobby Bonds
+]
+
+# Preprocess these images
+fun_images_clean = []
+fun_rows = []
+for img_path, actual_status in fun_images:
+    if img_path.exists():
+        img_data = load_and_preprocess_image(img_path)
+        fun_images_clean.append(img_data)
+        fun_rows.append((img_path, actual_status))
+    else:
+        print(f"Missing example image: {img_path.name}")
+
+# Convert to array
+fun_test_x = np.array(fun_images_clean)
+
+# Make predictions
+pred_fun = model.predict(fun_test_x, verbose=0) if len(fun_images_clean) > 0 else np.array([])
+
+# Create results dataframe
+if len(fun_rows) > 0:
+    fun_threshold = best_threshold if 'best_threshold' in globals() else 0.5
+    results = pd.DataFrame({
+        'PlayerID': [img.stem for img, _ in fun_rows],
+        'Actual_Status': [status for _, status in fun_rows],
+        'Prob_Not_HOF': pred_fun[:, 0].round(3),
+        'Prob_HOF': pred_fun[:, 1].round(3),
+        'Prediction': ['Hall of Fame' if p[1] >= fun_threshold else 'Not HOF' for p in pred_fun]
+    })
+
+    print("\nPredictions for Famous Players:")
+    print(results.to_string(index=False))
+else:
+    print("No fun example images were found in the local dataset cache.")
+```
+
+# Discussion & Limitations
+
+Let's be completely clear: this model's premise is **ridiculous**. That's the fun in it. I'm sure many of you can remember hearing your parents or coaches saying things similar to "That looks like a great player". You may even be saying it now to your own kids!
+
+## Why This Doesn't Actually Work {#the-limitations}
+
+1.  **Era Effects**: Photography styles, image quality and even facial hair trends have changed over time
+2.  **Correlation ≠ Causation**: Even if the model finds patterns, they're not causal
+3.  **Sample Size**: We're working with a relatively small dataset
+4.  **The Obvious**: A player's face has nothing to do with their baseball ability!
+5.  **And many, many more!**
+
+## But It's Still Fun!
+
+Despite all these limitations, this project demonstrates:
+
+-   How to build a simple image classification model
+-   Why class imbalance can make raw accuracy look better than the model really is
+-   The power (and danger) of neural networks finding spurious patterns
+-   How to work with image data in Python
+-   That sometimes, data science is just for fun
+
+# Conclusion
+
+So, can you actually predict a Hall of Famer by their looks? With this simple model, not reliably.
+
+This project was a fun exercise in taking a common phrase literally. We covered image preprocessing, building a basic neural network in TensorFlow, and checking class-aware metrics so we can see when a model is just defaulting to the majority class.
+
+The real takeaway is that just because a model *can* find patterns doesn't mean those patterns actually mean anything.
+
+Thanks for following this two-part series, albeit over two years. If you want to see more experiments, stay tuned. I'm trying my best to stay dedicated!
+
+------------------------------------------------------------------------
+
+*Images consumed from the curated Hugging Face dataset [`rpy-ai/mlb-hof-faces`](https://huggingface.co/datasets/rpy-ai/mlb-hof-faces), originally derived from Lahman metadata and baseball-reference.com sources. Player images are property of their respective owners.*

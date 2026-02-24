@@ -1,0 +1,271 @@
+---
+title: "Face of a Superstar: Part 1"
+description: "Gathering Data to predict Hall of Fame Inductees based on Images"
+author:
+  - name: Jeffrey Sumner
+date: 2023-05-13
+categories: [R, Web Scraping, Baseball]
+format: html
+editor: visual
+bibliography: references.bib
+link-citations: true
+image: "https://upload.wikimedia.org/wikipedia/en/thumb/1/11/National_Baseball_Hall_of_Fame_and_Museum_logo.svg/1200px-National_Baseball_Hall_of_Fame_and_Museum_logo.svg.png"
+---
+
+# Introduction
+
+Hello folks! I'm in the process of building my blog and have been going through some older projects and converting them to quarto documents in order to create content for this blog. The following project was started roughly 5 years ago on a whim. I've re-written nearly the entire original script because lots of things change over 5 years, namely I've become a bit better with R.
+
+This post will be the first of at least a two part series around predicting MLB Hall of Fame inductees based on their image. Let's go ahead and dive in!
+
+# Motivation
+
+Why in the world did I do this? Growing up a baseball player, I heard all the time "He looks like a superstar". So, naturally, I decided to take that simple overused phrase literally and model it out. This exercise is meant to be "fun" and not to be taken seriously; there are numerous ways it can go wrong, which we will discuss in Part 2. For now, let's start off like most Data Science projects and collect some data!
+
+# Setup - Required Packages
+
+First off, we will need to install the following packages:
+
+1.  Lahman - a source for pretty much all your baseball needs
+2.  tidyverse - essential for almost any data science project
+3.  rvest - used to scrape data
+
+The code to do so is below (unless already installed)
+
+```{r}
+#| warning: false
+#| message: false
+library(Lahman)
+library(tidyverse)
+library(rvest)
+library(magick)
+library(glue)
+library(here)
+library(parallel)
+```
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+#| eval: false
+if(!require(Lahman)){
+  install.packages("Lahman")
+  library(Lahman)
+}
+
+if(!require(tidyverse)){
+  install.packages("tidyverse")
+  library(tidyverse)
+}
+
+if(!require(rvest)){
+  install.packages("rvest")
+  library(rvest)
+}
+
+if(!require(magick)){
+  install.packages("magick")
+  library(magick)
+}
+
+if(!require(glue)){
+  install.packages("glue")
+  library(glue)
+}
+
+if(!require(here)){
+  install.packages("here")
+  library(here)
+}
+
+if(!require(parallel)){
+  install.packages("parallel")
+  library(parallel)
+}
+```
+
+# Data Collection
+
+Now that the required packages are loaded, let's understand how we plan to use them, namely the Lahman package and the associated data.
+
+## Lahman Data
+
+The Lahman package is a collection of data sets derived from the Lahman Baseball Database. This database contains a vast amount of statistics and player data. We plan to use this data/package to 1) Gather player IDs to pull images from baseball-reference.com [@baseballreference] and 2) Identify the players that have been inducted into the Hall of Fame.
+
+### Lahman - People
+
+Lahman has a dataset called `People` that can be accessed with the following code.
+
+```{r}
+data("People")
+dplyr::glimpse(People)
+```
+
+As you can see from our data output above, we have a wide selection of information for each baseball player. The most important columns for us will be the `playerID` and `bbrefID`. With these two columns, we will be able to join to the `HallOfFame` tibble and pull the MLB Hall of Fame eligible players from baseball-reference.com [@baseballreference].
+
+### Lahman - HallOfFame
+
+Speaking of the `HallOfFame` tibble, below is the code to load the data and view it.
+
+```{r}
+data("HallOfFame")
+dplyr::glimpse(HallOfFame)
+```
+
+In this table, we are concerned only with the `playerID` (to link to the `People` tibble), `inducted` and `category`. Let's move on to some cleanup of these two tibbles.
+
+### Lahman Data Cleaning
+
+The Lahman data conveniently gave us a key, `playerID`, that easily links our two tibbles together. Let's go ahead and add the information that we want from the `People` tibble to the `HallOfFame` tibble. In addition, we will go ahead and select only the columns previously listed as important from the `HallOfFame` tibble.
+
+First, let's split the `HallOfFame` tibble into Y/N category tibbles.
+
+```{r}
+# Collect the players that are in the HOF
+hof_y_people <- HallOfFame %>%
+  # select columns that are important
+  select(playerID, inducted, category) %>%
+  # filter to Player only
+  filter(category %in% "Player", inducted %in% "Y") %>%
+  # category is no longer needed, remove it
+  select(-category) %>%
+  distinct()
+
+# Collect the players that are not in the HOF
+hof_n_people <- HallOfFame %>%
+  # select columns that are important
+  select(playerID, inducted, category) %>%
+  # filter to Player only
+  filter(category %in% "Player", inducted %in% "N", !playerID %in% hof_y_people$playerID) %>%
+  # category is no longer needed, remove it
+  select(-category) %>%
+  distinct()
+```
+
+Our two tibbles separate the eligible players that made the Hall of Fame versus eligible players that did not make the Hall of Fame.
+
+We then join the people data to get the `bbrefID` to have a more complete data set in the code below.
+
+```{r}
+# Combine both tibbles and join the required people data
+hof_people <- bind_rows(hof_y_people, hof_n_people) %>%
+  left_join(
+    People %>% select(playerID, bbrefID)
+    , by = "playerID"
+  )
+
+glimpse(hof_people)
+```
+
+Now we have a single tibble with the Hall of Fame eligible MLB players as well as their baseball reference ID. We are now able to move on and get the image data for our players.
+
+## Baseball-Reference Images
+
+Each MLB player has a baseball-reference page associated with them. For example, [here is a link to Robin Yount's page](https://www.baseball-reference.com/players/y/yountro01.shtml)[@baseballreference]. When viewing Robin Yount's baseball reference page, you'll see a lot of information on his statistics, accolades, etc. But most importantly, you will see his player image. That image is the data that we want to pull.
+
+### Sample Data
+
+Let's take a look at the Robin Yount example a little more. To determine how to get the image you will need to inspect the baseball-reference source code and find how the image(s) are tagged. In doing so, you can download the image data. Below is an example using Robin Yount.
+
+```{r}
+#| fig-cap: "Robin Yount Sample Image #1"
+#| fig-align: center
+url <- "https://www.baseball-reference.com/players/y/yountro01.shtml"
+webpage <- session(url)
+link_titles <- webpage %>% html_nodes("img")
+img_url_first <- link_titles[2] %>% html_attr("src")
+img_url_first
+magick::image_read(img_url_first)
+```
+
+Notice how we set this up as `img_url_first`. If you hover over the image on baseball-reference, you may see multiple images pop up. In practice, this would be cause for concern. We would need to determine which image, if any, should be used for our modeling approach. In the context of this problem do we go with a picture that looks younger? Or maybe a picture of the player on their first team versus their last team? For the purposes of this exercise, we will choose only the picture that appears first. We'll save the in-depth approaches for a rainy day.
+
+Just to provide tangible evidence of multiple images, below is the second Robin Yount image.
+
+```{r}
+#| fig-cap: "Robin Yount Sample Image #2"
+#| fig-align: center
+link_titles <- webpage %>% html_nodes("img")
+img_url_second <- link_titles[3] %>% html_attr("src")
+img_url_second
+magick::image_read(img_url_second)
+```
+
+[**WARNING**]{.underline}: While this image appears to be an older image, baseball-reference does note that images are not necessarily in chronological order. If you take this a step further, do not assume that the first image is younger than the second or third.
+
+### Scraping Hall of Fame Eligible Players
+
+With an example created, we need to pull all Hall of Fame eligible players. To do this, let's break down the URL that we used to pull the data. The URL is listed below:
+
+-   [https://www.baseball-reference.com/players]{style="color:orange"}[/y/yountro01]{style="color:blue"}[.shtml]{style="color:orange"}
+
+Let's break this into different parts:
+
+1.  `root` = [https://www.baseball-reference.com/players]{style="color:orange"}
+2.  `first letter last name` = [/y]{style="color:blue"}
+3.  `bbrefID` = [/yountro01]{style="color:blue"}
+4.  `extension` = [.shtml]{style="color:orange"}
+
+So we need to always use the same `root` and `extension` while adjusting the `first letter last name` and `bbrefID`. In order to do this, we will create a simple function. Our function will take a single input, the `bbrefID` and output an image into a directory titled `Hall_of_Fame_Eligible`. The images will be stored as `eligibility`\_`playerID`. In addition, I have added logic to avoid scraping data that has already been scraped. More on that in just a moment.
+
+```{r}
+scrape_bbref_images <- function(baseball_reference_id){
+
+  inducted <- hof_people %>%
+    filter(bbrefID %in% baseball_reference_id) %>%
+    pull(inducted) %>%
+    as.character()
+
+  first_letter_first_name <- substr(baseball_reference_id,1,1)
+
+  file_name <- glue::glue(here::here(), "/data/MLB_Hall_Of_Fame_Project/Hall_of_Fame_Eligible/{inducted}_{baseball_reference_id}.jpg")
+
+  url <- glue::glue("https://www.baseball-reference.com/players/{first_letter_first_name}/{baseball_reference_id}.shtml")
+
+  try(if(!file.exists(file_name)){
+    print(baseball_reference_id)
+    Sys.sleep(5)
+    webpage <- session(url)
+    link_titles <- webpage %>% html_nodes("img")
+    img_url_first <- link_titles[2] %>% html_attr("src")
+    download.file(img_url_first, file_name,mode = "wb")
+  } else{
+    print(glue::glue("The file for {baseball_reference_id} already exists."))
+  }
+  )
+
+}
+```
+
+Now with our function, we will loop through all of our eligible players and download their first image. It is important to remember that we are scraping data from a website. One drawback of doing so is the potential to have your IP blocked. It is important to take things slow otherwise you may run into unexpected issues while gathering this data. Our function above uses `Sys.sleep(5)` to attempt to slow down the looping process but even then it is not enough. Additionally, there are safeguards in place to prevent pulling data that already exists. Run at your own risk and adjust based on how the website reacts to you.
+
+```{r}
+#| warning: false
+#| message: false
+#| eval: false
+lapply(hof_people$bbrefID, scrape_bbref_images)
+```
+
+Now we should have data on all eligible Hall of Fame players. A sample structure of the directory can be found below. In my next post, we will discuss how to model this data to determine who truly does "look like a superstar".
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| eval: true
+paths = unique(c(list.dirs(path = glue::glue(here::here(), "/data/MLB_Hall_Of_Fame_Project/Hall_of_Fame_Eligible/"),full.names = T),list.files(path = glue::glue(here::here(), "/data/MLB_Hall_Of_Fame_Project/Hall_of_Fame_Eligible/"),full.names = T,recursive = TRUE)))
+
+library(data.tree)
+library(plyr)
+
+x <- lapply(strsplit(paths, "/"), function(z) as.data.frame(t(z)))
+x <- rbind.fill(x) %>% select(-(1:3))
+x$pathString <- apply(x, 1, function(x) paste(trimws(na.omit(x)), collapse="/"))
+(mytree <- data.tree::as.Node(x%>% head() ))
+```
+
+# References
+
+::: {#refs}
+:::

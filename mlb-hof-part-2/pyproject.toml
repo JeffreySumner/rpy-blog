@@ -1,0 +1,20 @@
+[project]
+name = "mlbhofpart2"
+version = "0.1.0"
+description = "MLB Hall of Fame Face Prediction Model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "tensorflow>=2.15.0",
+    "keras>=3.0.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "matplotlib>=3.8.0",
+    "pillow>=10.0.0",
+    "scikit-learn>=1.3.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.25.0",
+    "nbformat>=5.9.0",
+    "gdown>=5.2.0",
+    "datasets>=2.16.0",
+]
